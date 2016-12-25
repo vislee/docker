@@ -19,6 +19,7 @@ func NewContainerCommand(dockerCli *command.DockerCli) *cobra.Command {
 		NewAttachCommand(dockerCli),
 		NewCommitCommand(dockerCli),
 		NewCopyCommand(dockerCli),
+		NewMonitorCommand(dockerCli),
 		NewCreateCommand(dockerCli),
 		NewDiffCommand(dockerCli),
 		NewExecCommand(dockerCli),

@@ -52,6 +52,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
@@ -260,4 +261,13 @@ func (cli *Client) CustomHTTPHeaders() map[string]string {
 // instance of the Client. This operation doesn't acquire a mutex.
 func (cli *Client) SetCustomHTTPHeaders(headers map[string]string) {
 	cli.customHTTPHeaders = headers
+}
+
+
+func (cli *Client) SetTimeout(d time.Duration) {
+	cli.client.Timeout = d
+}
+
+func (cli *Client) GetTimeout() time.Duration {
+	return cli.client.Timeout
 }
