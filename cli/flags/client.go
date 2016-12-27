@@ -5,6 +5,7 @@ type ClientOptions struct {
 	Common    *CommonOptions
 	ConfigDir string
 	Version   bool
+	Monitor   string
 }
 
 // NewClientOptions returns a new ClientOptions

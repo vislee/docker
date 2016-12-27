@@ -23,7 +23,7 @@ set -e
 
 set -o pipefail
 
-export DOCKER_PKG='github.com/docker/docker'
+export DOCKER_PKG='github.com/vislee/docker'
 export SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export MAKEDIR="$SCRIPTDIR/make"
 export PKG_CONFIG=${PKG_CONFIG:-pkg-config}
@@ -56,6 +56,7 @@ echo
 
 # List of bundles to create when no argument is passed
 DEFAULT_BUNDLES=(
+	binary-monitor
 	binary-client
 	binary-daemon
 	dynbinary
