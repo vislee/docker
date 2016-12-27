@@ -48,7 +48,7 @@ type ContainerAPIClient interface {
 	ContainerInspectWithRaw(ctx context.Context, container string, getSize bool) (types.ContainerJSON, []byte, error)
 	ContainerKill(ctx context.Context, container, signal string) error
 	ContainerList(ctx context.Context, options types.ContainerListOptions) ([]types.Container, error)
-	ContainerMonitor(ctx context.Context, srcPath, dstContainer, dstPath, status string) error
+	ContainerMonitor(ctx context.Context, srcPath, dstContainer, dstPath, status string) (string, error)
 	ContainerLogs(ctx context.Context, container string, options types.ContainerLogsOptions) (io.ReadCloser, error)
 	ContainerPause(ctx context.Context, container string) error
 	ContainerRemove(ctx context.Context, container string, options types.ContainerRemoveOptions) error

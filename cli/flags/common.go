@@ -68,8 +68,9 @@ func (commonOpts *CommonOptions) InstallFlags(flags *pflag.FlagSet) {
 
 	hostOpt := opts.NewNamedListOptsRef("hosts", &commonOpts.Hosts, opts.ValidateHost)
 	flags.VarP(hostOpt, "host", "H", "Daemon socket(s) to connect to")
-	listenOpt := opts.NewNamedListOptsRef("listens", &commonOpts.Listens, opts.ValidateHost)
-	flags.VarP(listenOpt, "listen", "L", "monitor listen to")
+	// listenOpt := opts.NewNamedListOptsRef("listens", &commonOpts.Listens, opts.ValidateHost)
+	defaultListen := []string{"tcp://:8981", }
+	flags.StringArrayVarP(&commonOpts.Listens, "listen", "L", defaultListen, "monitor listen to")
 }
 
 // SetDefaultOptions sets default values for options after flag parsing is

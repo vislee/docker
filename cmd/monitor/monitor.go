@@ -144,7 +144,7 @@ func (m *MonitorServer) serveAPI() error {
 		srv.srv.Handler = m
 		go func(srv *HTTPServer) {
 			var err error
-			logrus.Infof("API listen on %s", srv.l.Addr())
+			logrus.Infof("Monitor API listen on %s", srv.l.Addr())
 			if err = srv.Serve(); err != nil && strings.Contains(err.Error(), "use of closed network connection") {
 				err = nil
 			}
@@ -188,10 +188,29 @@ func (m *MonitorServer) Fuck(w http.ResponseWriter, req *http.Request) {
 
 func (m *MonitorServer) Monitor(w http.ResponseWriter, req *http.Request) {
 	ctx := context.Background()
-	err := m.dockerCli.Client().ContainerMonitor(ctx, m.opts.monitor, "", "/tmp/tmp_health_monitor_net", "200")
+	btime := time.Now()
+	container, err := m.dockerCli.Client().ContainerMonitor(ctx, m.opts.monitor, "", "/tmp/tmp_health_monitor_net", "200")
+	td := time.Now().Sub(btime).String()
 	if err != nil {
-		io.WriteString(w, err.Error())
+		logrus.Errorf("Monitor resp: %s", err.Error())
+		b, e := NewXml("docker", "monitor", err.Error(), err.Error(), td).MarshalIndent()
+		if e != nil {
+			io.WriteString(w, e.Error())
+			return
+		}
+		w.Header().Set("Content-Type", "text/xml;charset=utf-8")
+		io.WriteString(w, string(b))
+		return
 	}
+
+	logrus.Infof("Monitor resp: test container %s ok", container)
+	b, e := NewXml("docker", "monitor", "", "", td).MarshalIndent()
+	if e != nil {
+		io.WriteString(w, e.Error())
+		return
+	}
+	w.Header().Set("Content-Type", "text/xml;charset=utf-8")
+	io.WriteString(w, string(b))
 }
 
 func newMonitorCommand() *cobra.Command {

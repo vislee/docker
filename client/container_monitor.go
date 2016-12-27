@@ -15,7 +15,7 @@ import (
 	"github.com/docker/docker/pkg/archive"
 )
 
-func (cli *Client) ContainerMonitor(ctx context.Context, srcPath, dstContainer, dstPath, status string) error {
+func (cli *Client) ContainerMonitor(ctx context.Context, srcPath, dstContainer, dstPath, status string) (string, error) {
 	// 目标container为空，随机选择一个
 	if dstContainer == "" {
 		options := &types.ContainerListOptions{
@@ -27,7 +27,7 @@ func (cli *Client) ContainerMonitor(ctx context.Context, srcPath, dstContainer, 
 
 		containers, err := cli.ContainerList(ctx, *options)
 		if err != nil {
-			return fmt.Errorf("error: dstContainer(%s) error: %s", dstContainer, err.Error())
+			return "", fmt.Errorf("dstContainer(%s) error: %s", dstContainer, err.Error())
 		}
 
 		rand.Seed(time.Now().Unix())
@@ -42,26 +42,26 @@ func (cli *Client) ContainerMonitor(ctx context.Context, srcPath, dstContainer, 
 		}
 	}
 
-	if dstContainer == "" {
-		return fmt.Errorf("error: no run containers")
+	if dstContainer == "" || len(dstContainer) < 12 {
+		return "", fmt.Errorf("no run container or container id too short")
 	}
 
 	// 拷贝文件到目标container
 	dstInfo := archive.CopyInfo{Path: dstPath}
 	srcInfo, err := archive.CopyInfoSourcePath(srcPath, true)
 	if err != nil {
-		return fmt.Errorf("error: dstContainer(%s) error: %s", string([]byte(dstContainer[:12])), err.Error())
+		return "", fmt.Errorf("dstContainer(%s) error: %s", string([]byte(dstContainer[:12])), err.Error())
 	}
 
 	srcArchive, err := archive.TarResource(srcInfo)
 	if err != nil {
-		return fmt.Errorf("error: dstContainer(%s) error: %s", string([]byte(dstContainer[:12])), err.Error())
+		return "", fmt.Errorf("dstContainer(%s) error: %s", string([]byte(dstContainer[:12])), err.Error())
 	}
 	defer srcArchive.Close()
 
 	dstDir, preparedArchive, err := archive.PrepareArchiveCopy(srcArchive, srcInfo, dstInfo)
 	if err != nil {
-		return fmt.Errorf("error: dstContainer(%s) error: %s", string([]byte(dstContainer[:12])), err.Error())
+		return "", fmt.Errorf("dstContainer(%s) error: %s", string([]byte(dstContainer[:12])), err.Error())
 	}
 	defer preparedArchive.Close()
 
@@ -71,7 +71,7 @@ func (cli *Client) ContainerMonitor(ctx context.Context, srcPath, dstContainer, 
 
 	err = cli.CopyToContainer(ctx, dstContainer, dstDir, preparedArchive, options)
 	if err != nil {
-		return fmt.Errorf("error: dstContainer(%s) error: %s", string([]byte(dstContainer[:12])), err.Error())
+		return "", fmt.Errorf("dstContainer(%s) error: %s", string([]byte(dstContainer[:12])), err.Error())
 	}
 
 	// 执行命令
@@ -85,14 +85,14 @@ func (cli *Client) ContainerMonitor(ctx context.Context, srcPath, dstContainer, 
 	}
 	res, err := runMonitorExec(cli, dstContainer, execConfig)
 	if err != nil {
-		return fmt.Errorf("error: dstContainer(%s) error: %s", string([]byte(dstContainer[:12])), err.Error())
+		return "", fmt.Errorf("dstContainer(%s) error: %s", string([]byte(dstContainer[:12])), err.Error())
 	}
 
 	// 删除文件
 	execConfig.Cmd = []string{"/bin/rm", "-f", dstPath}
 	_, err = runMonitorExec(cli, dstContainer, execConfig)
 	if err != nil {
-		return fmt.Errorf("error: dstContainer(%s) error: %s", string([]byte(dstContainer[:12])), err.Error())
+		return "", fmt.Errorf("dstContainer(%s) error: %s", string([]byte(dstContainer[:12])), err.Error())
 	}
 
 	// 检查结果
@@ -103,19 +103,19 @@ func (cli *Client) ContainerMonitor(ctx context.Context, srcPath, dstContainer, 
 	var monitor monitorResp
 	err = json.Unmarshal(res[8:], &monitor)
 	if err != nil {
-		return fmt.Errorf("error: dstContainer(%s) error: %s", string([]byte(dstContainer[:12])), err.Error())
+		return "", fmt.Errorf("dstContainer(%s) error: %s", string([]byte(dstContainer[:12])), err.Error())
 	}
 
 	st, err := strconv.Atoi(status)
 	if err != nil {
-		return fmt.Errorf("error: dstContainer(%s) error: %s", string([]byte(dstContainer[:12])), err.Error())
+		return "", fmt.Errorf("dstContainer(%s) error: %s", string([]byte(dstContainer[:12])), err.Error())
 	}
 
 	if monitor.Code != st {
-		return fmt.Errorf("error: dstContainer(%s) message: %s", string([]byte(dstContainer[:12])), monitor.Message)
+		return "", fmt.Errorf("dstContainer(%s) message: %s", string([]byte(dstContainer[:12])), monitor.Message)
 	}
 
-	return fmt.Errorf("ok: dstContainer(%s)", string([]byte(dstContainer[:12])))
+	return string([]byte(dstContainer[:12])), nil
 }
 
 func runMonitorExec(client APIClient, dstContainer string, config *types.ExecConfig) ([]byte, error) {

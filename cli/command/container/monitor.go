@@ -58,5 +58,10 @@ func runMonitor(dockerCli *command.DockerCli, opts monitorOptions) error {
 	client.SetTimeout(10 * time.Second)
 	defer client.SetTimeout(0 * time.Second)
 
-	return client.ContainerMonitor(ctx, srcPath, dstContainer, dstPath, opts.status)
+	container, err := client.ContainerMonitor(ctx, srcPath, dstContainer, dstPath, opts.status)
+	if err != nil {
+		return err
+	}
+
+	return fmt.Errorf("test container %s ok", container)
 }
