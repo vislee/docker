@@ -7,6 +7,13 @@ set -e
 (
 	source "${MAKEDIR}/.binary-setup"
 	export BINARY_SHORT_NAME="$DOCKER_MONITOR_BINARY_NAME"
-	export GO_PACKAGE='github.com/vislee/docker/cmd/monitor'
+	export GO_PACKAGE='./cmd/monitor/monitor.go'
+	source "${MAKEDIR}/.binary"
+)
+
+(
+	source "${MAKEDIR}/.binary-setup"
+	export BINARY_SHORT_NAME="$DOCKER_MONITOR_NET_BINARY_NAME"
+	export GO_PACKAGE='./monitor/monitor_net.go'
 	source "${MAKEDIR}/.binary"
 )

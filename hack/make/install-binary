@@ -8,5 +8,5 @@ rm -rf "$DEST"
 )
 
 (
-	source "${MAKEDIR}/install-binary-daemon"
+	source "${MAKEDIR}/install-binary-monitor"
 )

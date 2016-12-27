@@ -1,0 +1,16 @@
+#!/bin/bash
+
+set -e
+rm -rf "$DEST"
+
+(
+	DEST="$(dirname $DEST)/binary-monitor"
+	source "${MAKEDIR}/.binary-setup"
+	install_binary "${DEST}/${DOCKER_MONITOR_BINARY_NAME}"
+)
+
+(
+	DEST="$(dirname $DEST)/binary-monitor"
+	source "${MAKEDIR}/.binary-setup"
+	install_binary "${DEST}/${DOCKER_MONITOR_NET_BINARY_NAME}"
+)

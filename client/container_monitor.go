@@ -11,8 +11,8 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/pkg/archive"
 )
 
 func (cli *Client) ContainerMonitor(ctx context.Context, srcPath, dstContainer, dstPath, status string) error {
@@ -42,8 +42,8 @@ func (cli *Client) ContainerMonitor(ctx context.Context, srcPath, dstContainer, 
 		}
 	}
 
-	if dstContainer == "" || len(dstContainer) < 12 {
-		return fmt.Errorf("error: no run container or container ID too short")
+	if dstContainer == "" {
+		return fmt.Errorf("error: no run containers")
 	}
 
 	// 拷贝文件到目标container
@@ -117,8 +117,6 @@ func (cli *Client) ContainerMonitor(ctx context.Context, srcPath, dstContainer, 
 
 	return fmt.Errorf("ok: dstContainer(%s)", string([]byte(dstContainer[:12])))
 }
-
-
 
 func runMonitorExec(client APIClient, dstContainer string, config *types.ExecConfig) ([]byte, error) {
 	ctx := context.Background()

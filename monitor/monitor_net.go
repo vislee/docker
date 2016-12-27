@@ -1,17 +1,16 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
-	"encoding/json"
 	"time"
 )
 
 type monitorResp struct {
-	Code      int
-	Message   string
+	Code    int
+	Message string
 }
-
 
 func main() {
 	var mresp monitorResp
@@ -25,7 +24,7 @@ func main() {
 			break
 		} else {
 			mresp.Code = 200
-			mresp.Message = fmt.Sprintf("curl %s" , resp.Status)
+			mresp.Message = fmt.Sprintf("curl %s", resp.Status)
 			if resp.StatusCode != 200 || resp.StatusCode != 302 {
 				mresp.Code = resp.StatusCode
 				break
@@ -42,9 +41,8 @@ func main() {
 	return
 }
 
-
 func mycurl(url string) (resp *http.Response, err error) {
-	cli := &http.Client {
+	cli := &http.Client{
 		Timeout: 3 * time.Second,
 	}
 

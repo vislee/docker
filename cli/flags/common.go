@@ -34,7 +34,7 @@ var (
 type CommonOptions struct {
 	Debug      bool
 	Hosts      []string
-	Listen     string
+	Listens    []string
 	LogLevel   string
 	TLS        bool
 	TLSVerify  bool
@@ -57,7 +57,6 @@ func (commonOpts *CommonOptions) InstallFlags(flags *pflag.FlagSet) {
 	flags.StringVarP(&commonOpts.LogLevel, "log-level", "l", "info", "Set the logging level (\"debug\", \"info\", \"warn\", \"error\", \"fatal\")")
 	flags.BoolVar(&commonOpts.TLS, "tls", false, "Use TLS; implied by --tlsverify")
 	flags.BoolVar(&commonOpts.TLSVerify, FlagTLSVerify, dockerTLSVerify, "Use TLS and verify the remote")
-	flags.StringVarP(&commonOpts.Listen, "listen", "L", ":8981", "Set the listen addr")
 
 	// TODO use flag flags.String("identity"}, "i", "", "Path to libtrust key file")
 
@@ -69,6 +68,8 @@ func (commonOpts *CommonOptions) InstallFlags(flags *pflag.FlagSet) {
 
 	hostOpt := opts.NewNamedListOptsRef("hosts", &commonOpts.Hosts, opts.ValidateHost)
 	flags.VarP(hostOpt, "host", "H", "Daemon socket(s) to connect to")
+	listenOpt := opts.NewNamedListOptsRef("listens", &commonOpts.Listens, opts.ValidateHost)
+	flags.VarP(listenOpt, "listen", "L", "monitor listen to")
 }
 
 // SetDefaultOptions sets default values for options after flag parsing is

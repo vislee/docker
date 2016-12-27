@@ -7,6 +7,6 @@ set -e
 (
 	source "${MAKEDIR}/.binary-setup"
 	export BINARY_SHORT_NAME="$DOCKER_CLIENT_BINARY_NAME"
-	export GO_PACKAGE='github.com/vislee/docker/cmd/docker'
+	export GO_PACKAGE='./cmd/docker/'
 	source "${MAKEDIR}/.binary"
 )

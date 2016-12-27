@@ -23,7 +23,7 @@ set -e
 
 set -o pipefail
 
-export DOCKER_PKG='github.com/vislee/docker'
+export DOCKER_PKG='github.com/docker/docker'
 export SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export MAKEDIR="$SCRIPTDIR/make"
 export PKG_CONFIG=${PKG_CONFIG:-pkg-config}
@@ -58,41 +58,41 @@ echo
 DEFAULT_BUNDLES=(
 	binary-monitor
 	binary-client
-	binary-daemon
-	dynbinary
+	# binary-daemon
+	# dynbinary
 
-	test-unit
-	test-integration-cli
-	test-docker-py
+	# test-unit
+	# test-integration-cli
+	# test-docker-py
 
-	cross
-	tgz
+	# cross
+	# tgz
 )
 
 VERSION=$(< ./VERSION)
-! BUILDTIME=$(date --rfc-3339 ns 2> /dev/null | sed -e 's/ /T/')
-if command -v git &> /dev/null && [ -d .git ] && git rev-parse &> /dev/null; then
-	GITCOMMIT=$(git rev-parse --short HEAD)
-	if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
-		GITCOMMIT="$GITCOMMIT-unsupported"
-		echo "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-		echo "# GITCOMMIT = $GITCOMMIT"
-		echo "# The version you are building is listed as unsupported because"
-		echo "# there are some files in the git repository that are in an uncommitted state."
-		echo "# Commit these changes, or add to .gitignore to remove the -unsupported from the version."
-		echo "# Here is the current list:"
-		git status --porcelain --untracked-files=no
-		echo "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-	fi
-elif [ "$DOCKER_GITCOMMIT" ]; then
-	GITCOMMIT="$DOCKER_GITCOMMIT"
-else
-	echo >&2 'error: .git directory missing and DOCKER_GITCOMMIT not specified'
-	echo >&2 '  Please either build with the .git directory accessible, or specify the'
-	echo >&2 '  exact (--short) commit hash you are building using DOCKER_GITCOMMIT for'
-	echo >&2 '  future accountability in diagnosing build issues.  Thanks!'
-	exit 1
-fi
+# ! BUILDTIME=$(date --rfc-3339 ns 2> /dev/null | sed -e 's/ /T/')
+# if command -v git &> /dev/null && [ -d .git ] && git rev-parse &> /dev/null; then
+# 	GITCOMMIT=$(git rev-parse --short HEAD)
+# 	if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+# 		GITCOMMIT="$GITCOMMIT-unsupported"
+# 		echo "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+# 		echo "# GITCOMMIT = $GITCOMMIT"
+# 		echo "# The version you are building is listed as unsupported because"
+# 		echo "# there are some files in the git repository that are in an uncommitted state."
+# 		echo "# Commit these changes, or add to .gitignore to remove the -unsupported from the version."
+# 		echo "# Here is the current list:"
+# 		git status --porcelain --untracked-files=no
+# 		echo "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+# 	fi
+# elif [ "$DOCKER_GITCOMMIT" ]; then
+# 	GITCOMMIT="$DOCKER_GITCOMMIT"
+# else
+# 	echo >&2 'error: .git directory missing and DOCKER_GITCOMMIT not specified'
+# 	echo >&2 '  Please either build with the .git directory accessible, or specify the'
+# 	echo >&2 '  exact (--short) commit hash you are building using DOCKER_GITCOMMIT for'
+# 	echo >&2 '  future accountability in diagnosing build issues.  Thanks!'
+# 	exit 1
+# fi
 
 if [ "$AUTO_GOPATH" ]; then
 	rm -rf .gopath
@@ -257,10 +257,12 @@ copy_binaries() {
 
 install_binary() {
 	file="$1"
-	target="${DOCKER_MAKE_INSTALL_PREFIX:=/usr/local}/bin/"
+	target="${DOCKER_MAKE_INSTALL_PREFIX:=/usr/local/sae/docker_monitor}/bin/"
 	if [ "$(go env GOOS)" == "linux" ]; then
 		echo "Installing $(basename $file) to ${target}"
 		cp -L "$file" "$target"
+	elif [ "$(go env GOOS)" == "darwin" ]; then
+		echo "Installing ${file} to ${target}"
 	else
 		echo "Install is only supported on linux"
 		return 1
@@ -280,7 +282,7 @@ main() {
 	if [ "$(go env GOHOSTOS)" != 'windows' ]; then
 		# Windows and symlinks don't get along well
 
-		rm -f bundles/latest
+		rm -rf bundles/latest
 		ln -s "$VERSION" bundles/latest
 	fi
 
