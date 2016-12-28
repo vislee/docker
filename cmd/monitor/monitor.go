@@ -1,57 +1,78 @@
 package main
 
-
 import (
 	"fmt"
-	"os"
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
 	"golang.org/x/net/context"
 
 	"github.com/Sirupsen/logrus"
+	systemdDaemon "github.com/coreos/go-systemd/daemon"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cli/command"
 	cliflags "github.com/docker/docker/cli/flags"
-	"github.com/docker/docker/pkg/term"
+	"github.com/docker/docker/pkg/jsonlog"
 	"github.com/docker/docker/pkg/pidfile"
-	systemdDaemon "github.com/coreos/go-systemd/daemon"
+	"github.com/docker/docker/pkg/signal"
+	"github.com/docker/docker/pkg/term"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
 
-
 type monitorOptions struct {
-	common       *cliflags.CommonOptions
-	flags        *pflag.FlagSet
-	monitor      string
-	pidFile      string
+	common  *cliflags.CommonOptions
+	flags   *pflag.FlagSet
+	monitor string
+	pidFile string
+	logFile string
 }
 
-
 type monitorCli struct {
-	flags      *pflag.FlagSet
-	ser        *MonitorServer
+	flags *pflag.FlagSet
+	ser   *MonitorServer
 }
 
 func (cli *monitorCli) start(opts *monitorOptions) error {
+	stopc := make(chan bool)
+	defer close(stopc)
+
 	opts.common.SetDefaultOptions(opts.flags)
 	cli.flags = opts.flags
 
 	if opts.pidFile != "" {
 		pf, err := pidfile.New(opts.pidFile)
 		if err != nil {
-			return fmt.Errorf("Error starting monitor: %v", err)
+			return fmt.Errorf("Error monitor starting: %v", err)
 		}
 		defer func() {
+			logrus.Info("monitor exit, rm pidfile")
 			if err := pf.Remove(); err != nil {
 				logrus.Error(err)
 			}
 		}()
 	}
+
+	if opts.logFile != "" {
+		file, err := os.OpenFile(opts.logFile, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0666)
+		if err != nil {
+			return fmt.Errorf("Error monitor open logfile: %v", err)
+		}
+		logrus.SetOutput(file)
+		defer func() {
+			logrus.SetOutput(os.Stderr)
+			file.Close()
+		}()
+	}
+
+	logrus.SetFormatter(&logrus.TextFormatter{
+		ForceColors:     false,
+		TimestampFormat: jsonlog.RFC3339NanoFixed,
+	})
 
 	dockerCli := command.NewDockerCli(os.Stdin, os.Stdout, os.Stderr)
 	cliOpt := &cliflags.ClientOptions{Common: opts.common}
@@ -62,11 +83,10 @@ func (cli *monitorCli) start(opts *monitorOptions) error {
 
 	dockerCli.Client().SetTimeout(10 * time.Second)
 
-
 	ms := &MonitorServer{dockerCli: dockerCli, opts: opts}
 	cli.ser = ms
 
-	for i:=0; i<len(opts.common.Listens); i++ {
+	for i := 0; i < len(opts.common.Listens); i++ {
 		protoAddr := opts.common.Listens[i]
 		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
 		if len(protoAddrParts) != 2 {
@@ -84,6 +104,11 @@ func (cli *monitorCli) start(opts *monitorOptions) error {
 		ms.Accept(proto, ls)
 	}
 
+	signal.Trap(func() {
+		cli.stop()
+		<-stopc // wait for daemonCli.start() to return
+	})
+
 	serveAPIWait := make(chan error)
 	go ms.Wait(serveAPIWait)
 	notifySystem()
@@ -95,6 +120,9 @@ func (cli *monitorCli) start(opts *monitorOptions) error {
 	return nil
 }
 
+func (cli *monitorCli) stop() {
+	cli.ser.Close()
+}
 
 type HTTPServer struct {
 	srv *http.Server
@@ -138,6 +166,14 @@ func (m *MonitorServer) Accept(addr string, listeners ...net.Listener) {
 	}
 }
 
+func (m *MonitorServer) Close() {
+	for _, srv := range m.servers {
+		if err := srv.Close(); err != nil {
+			logrus.Error(err)
+		}
+	}
+}
+
 func (m *MonitorServer) serveAPI() error {
 	var chErrors = make(chan error, len(m.servers))
 	for _, srv := range m.servers {
@@ -166,15 +202,14 @@ func (m *MonitorServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	m.router(w, req)
 }
 
-
 func (m *MonitorServer) router(w http.ResponseWriter, req *http.Request) {
 	switch req.URL.Path {
-		case "/ping":
-			m.Ping(w, req)
-		case "/monitor":
-			m.Monitor(w, req)
-		default:
-			m.Fuck(w, req)
+	case "/ping":
+		m.Ping(w, req)
+	case "/monitor":
+		m.Monitor(w, req)
+	default:
+		m.Fuck(w, req)
 	}
 }
 
@@ -215,7 +250,7 @@ func (m *MonitorServer) Monitor(w http.ResponseWriter, req *http.Request) {
 
 func newMonitorCommand() *cobra.Command {
 	opts := &monitorOptions{
-		common:       cliflags.NewCommonOptions(),
+		common: cliflags.NewCommonOptions(),
 	}
 
 	cmd := &cobra.Command{
@@ -233,7 +268,8 @@ func newMonitorCommand() *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.StringVar(&opts.monitor, "monitor", "/usr/local/sae/docker_monitor/bin/monitor-net", "monitor exe file")
-	flags.StringVar(&opts.pidFile, "pidfile", "/data0/logs/docker-monitor.pid", "monitor pidfile")
+	flags.StringVar(&opts.pidFile, "pidfile", "/data0/docker-monitor.pid", "monitor pidfile")
+	flags.StringVar(&opts.logFile, "logfile", "/data0/logs/docker_monitor.log", "monitor logfile")
 
 	opts.common.InstallFlags(flags)
 
@@ -256,7 +292,6 @@ func runMonitor(opts *monitorOptions) error {
 	err = mCli.start(opts)
 	return err
 }
-
 
 func initService(mCli *monitorCli) (bool, error) {
 	return false, nil
