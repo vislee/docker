@@ -42,8 +42,9 @@ func (x *Xml) MarshalIndent() ([]byte, error) {
 }
 
 // func main() {
-// 	x := NewXml("sso", "", "", "22")
-// 	x.AppendItem("billing", "ok2", "err2", "2233")
+// 	x := &Xml{Res: make([]Resource, 0, 1)}
+// 	// x := NewXml("sso", "", "", "22")
+// 	// x.AppendItem("billing", "ok2", "err2", "2233")
 // 	b, e := x.MarshalIndent()
 // 	if e != nil {
 // 		fmt.Printf("error: %s\n", e.Error())

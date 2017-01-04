@@ -3,9 +3,12 @@ package main
 import (
 	"fmt"
 	"io"
+	"math/rand"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
+	"path"
 	"strings"
 	"time"
 
@@ -38,6 +41,7 @@ type monitorCli struct {
 }
 
 func (cli *monitorCli) start(opts *monitorOptions) error {
+	rand.Seed(time.Now().Unix())
 	stopc := make(chan bool)
 	defer close(stopc)
 
@@ -206,7 +210,7 @@ func (m *MonitorServer) router(w http.ResponseWriter, req *http.Request) {
 	switch req.URL.Path {
 	case "/ping":
 		m.Ping(w, req)
-	case "/monitor":
+	case "/":
 		m.Monitor(w, req)
 	default:
 		m.Fuck(w, req)
@@ -218,17 +222,30 @@ func (m *MonitorServer) Ping(w http.ResponseWriter, req *http.Request) {
 }
 
 func (m *MonitorServer) Fuck(w http.ResponseWriter, req *http.Request) {
-	io.WriteString(w, "Fuck\n")
+	ss := []string{"The sadness will last forever.", "oh, Fuck. You get lost!!!", "In every man there is a fire, the passing of people only see the smoke.",
+		"Normality is a paved road: It’s comfortable to walk, but no flowers grow on it.", "I know nothing with any certainty,but the sight of the stars makes me dream.",
+		"Life must have the code and music."}
+	i := rand.Intn(len(ss))
+	io.WriteString(w, ss[i])
 }
 
 func (m *MonitorServer) Monitor(w http.ResponseWriter, req *http.Request) {
-	ctx := context.Background()
-	btime := time.Now()
-	container, err := m.dockerCli.Client().ContainerMonitor(ctx, m.opts.monitor, "", "/tmp/tmp_health_monitor_net", "200")
-	td := time.Now().Sub(btime).String()
+	args, err := url.ParseQuery(req.URL.RawQuery)
 	if err != nil {
-		logrus.Errorf("Monitor resp: %s", err.Error())
-		b, e := NewXml("docker", "monitor", err.Error(), err.Error(), td).MarshalIndent()
+		logrus.Errorf("Monitor req ParseQuery: %s", err.Error())
+		b, e := NewXml("docker", "monitor", err.Error(), err.Error(), "0").MarshalIndent()
+		if e != nil {
+			io.WriteString(w, e.Error())
+			return
+		}
+		w.Header().Set("Content-Type", "text/xml;charset=utf-8")
+		io.WriteString(w, string(b))
+		return
+	}
+	service, ok := args["service"]
+	if !ok {
+		logrus.Errorf("Monitor req %s", "no service args")
+		b, e := NewXml("docker", "monitor", "args error", "args error", "0").MarshalIndent()
 		if e != nil {
 			io.WriteString(w, e.Error())
 			return
@@ -238,9 +255,27 @@ func (m *MonitorServer) Monitor(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	logrus.Infof("Monitor resp: test container %s ok", container)
-	b, e := NewXml("docker", "monitor", "", "", td).MarshalIndent()
+	ctx := context.Background()
+	xml := &Xml{Res: make([]Resource, 0, len(service))}
+	var container string = ""
+	for _, itm := range service {
+		src := path.Join(m.opts.monitor, itm)
+		dst := fmt.Sprintf("/tmp/tmp_health_%s_%d", itm, rand.Int())
+		btime := time.Now()
+		container, err = m.dockerCli.Client().ContainerMonitor(ctx, src, container, dst, "200")
+		td := time.Now().Sub(btime).String()
+		if err != nil {
+			logrus.Errorf("Monitor service %s resp: %s", itm, err.Error())
+			xml.AppendItem("docker", itm, err.Error(), err.Error(), td)
+		} else {
+			logrus.Infof("Monitor service %s resp: test container %s ok", itm, container)
+			xml.AppendItem("docker", itm, "", "", td)
+		}
+	}
+
+	b, e := xml.MarshalIndent()
 	if e != nil {
+		logrus.Infof("Monitor resp: test container %s return xml error", container)
 		io.WriteString(w, e.Error())
 		return
 	}
@@ -267,7 +302,7 @@ func newMonitorCommand() *cobra.Command {
 	cli.SetupRootCommand(cmd)
 
 	flags := cmd.Flags()
-	flags.StringVar(&opts.monitor, "monitor", "/usr/local/sae/docker_monitor/bin/monitor-net", "monitor exe file")
+	flags.StringVar(&opts.monitor, "monitor", "/usr/local/sae/docker_monitor/bin/", "monitor exe file path")
 	flags.StringVar(&opts.pidFile, "pidfile", "/data0/docker-monitor.pid", "monitor pidfile")
 	flags.StringVar(&opts.logFile, "logfile", "/data0/logs/docker_monitor.log", "monitor logfile")
 

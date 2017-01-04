@@ -20,7 +20,7 @@ func (cli *Client) ContainerMonitor(ctx context.Context, srcPath, dstContainer, 
 	if dstContainer == "" {
 		options := &types.ContainerListOptions{
 			All:     false,
-			Limit:   10,
+			Limit:   20,
 			Size:    false,
 			Filters: filters.NewArgs(),
 		}
@@ -29,12 +29,15 @@ func (cli *Client) ContainerMonitor(ctx context.Context, srcPath, dstContainer, 
 		if err != nil {
 			return "", fmt.Errorf("dstContainer(%s) error: %s", dstContainer, err.Error())
 		}
-
-		rand.Seed(time.Now().Unix())
 		var ll = len(containers)
+		if ll == 0 {
+			return "", fmt.Errorf("no run container")
+		}
+		rand.Seed(time.Now().Unix())
+
 		for {
 			ll -= 1
-			idx := rand.Intn(len(containers) - 1)
+			idx := rand.Intn(len(containers))
 			dstContainer = containers[idx].ID
 			if containers[idx].State == "running" || ll == 0 {
 				break
