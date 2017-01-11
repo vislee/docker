@@ -79,7 +79,7 @@ func (cli *Client) ContainerMonitor(ctx context.Context, srcPath, dstContainer, 
 
 	// 执行命令
 	execConfig := &types.ExecConfig{
-		Tty:          false,
+		Tty:          true,
 		Cmd:          []string{dstPath},
 		Detach:       false,
 		AttachStdout: true,
@@ -104,7 +104,7 @@ func (cli *Client) ContainerMonitor(ctx context.Context, srcPath, dstContainer, 
 		Message string
 	}
 	var monitor monitorResp
-	err = json.Unmarshal(res[8:], &monitor)
+	err = json.Unmarshal(res, &monitor)
 	if err != nil {
 		return "", fmt.Errorf("dstContainer(%s) error: %s", string([]byte(dstContainer[:12])), err.Error())
 	}
